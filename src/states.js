@@ -9,6 +9,7 @@ var state;
 // switches to another game state
 var switchState = function(nextState,fadeDuration, continueUpdate1, continueUpdate2) {
     state = (fadeDuration) ? fadeNextState(state,nextState,fadeDuration,continueUpdate1, continueUpdate2) : nextState;
+    audio.silence();
     state.init();
     if (executive.isPaused()) {
         executive.togglePause();
@@ -138,6 +139,7 @@ var homeState = (function(){
     return {
         init: function() {
             menu.enable();
+            audio.coffeeBreakMusic.startLoop();
         },
         draw: function() {
             renderer.clearMapFrame();
@@ -489,6 +491,7 @@ var preNewGameState = (function() {
 
     return {
         init: function() {
+            audio.startMusic.play();
             menu.enable();
             gameTitleState.init();
             map = undefined;
@@ -1154,7 +1157,7 @@ var aboutState = (function(){
 
 var newGameState = (function() {
     var frames;
-    var duration = 2;
+    var duration = 0;
     var startLevel = 1;
 
     return {
@@ -1196,10 +1199,11 @@ var newGameState = (function() {
 
 var readyState =  (function(){
     var frames;
-    var duration = 2;
+    var duration = 4;
     
     return {
         init: function() {
+            audio.startMusic.play();
             var i;
             for (i=0; i<5; i++)
                 actors[i].reset();
@@ -1349,6 +1353,7 @@ var playState = {
                         ghosts[i].mode = GHOST_GOING_HOME;
                         ghosts[i].targetting = 'door';
                     }
+                    ghosts[0].playSounds();
             }
             
             if (!skip) {
@@ -1373,6 +1378,7 @@ var playState = {
                     if (map.allDotsEaten()) {
                         //this.draw();
                         switchState(finishState);
+                        audio.extend.play();
                         break;
                     }
 
@@ -1496,6 +1502,9 @@ var deadState = (function() {
         // script functions for each time
         triggers: {
             0: { // freeze
+                init: function() {
+                    audio.die.play();
+                },
                 update: function() {
                     var i;
                     for (i=0; i<4; i++) 

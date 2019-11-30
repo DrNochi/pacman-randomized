@@ -60,6 +60,93 @@ var newChildObject = function(parentObj, newObj) {
 
     return resultObj;
 };
+
+var DEBUG = false;
+//@line 1 "src/sound.js"
+/* Sound handlers added by Dr James Freeman who was sad such a great reverse was a silent movie  */
+
+var audio = new preloadAudio();
+
+function audioTrack(url, volume) {
+    var audio = new Audio(url);
+    if (volume) audio.volume = volume;
+    audio.load();
+    var looping = false;
+    this.play = function(noResetTime) {
+        playSound(noResetTime);
+    };
+    this.startLoop = function(noResetTime) {
+        if (looping) return;
+        audio.addEventListener('ended', audioLoop);
+        audioLoop(noResetTime);
+        looping = true;
+    };
+    this.stopLoop = function(noResetTime) {
+        try{ audio.removeEventListener('ended', audioLoop) } catch (e) {};
+        audio.pause();
+        if (!noResetTime) audio.currentTime = 0;
+        looping = false;
+    };
+    this.isPlaying = function() {
+        return !audio.paused;
+    };
+    this.isPaused = function() {
+        return audio.paused;
+    }; 
+    this.stop = this.stopLoop;
+
+    function audioLoop(noResetTime) {
+        playSound(noResetTime);
+    }
+    function playSound(noResetTime) {
+        // for really rapid sound repeat set noResetTime
+        if(!audio.paused) {
+            audio.pause();
+            if (!noResetTime ) audio.currentTime = 0;
+        }
+        try{
+            var playPromise = audio.play();
+            if(playPromise) {
+                playPromise.then(function(){}).catch(function(err){});
+            }
+        } 
+        catch(err){ console.error(err) }
+    }
+}
+
+
+function preloadAudio() {
+
+    this.credit            = new audioTrack('sounds/credit.mp3');
+    this.coffeeBreakMusic  = new audioTrack('sounds/coffee-break-music.mp3');
+    this.die               = new audioTrack('sounds/miss.mp3');
+    this.ghostReturnToHome = new audioTrack('sounds/ghost-return-to-home.mp3');
+    this.eatingGhost       = new audioTrack('sounds/eating-ghost.mp3');
+    this.ghostTurnToBlue   = new audioTrack('sounds/ghost-turn-to-blue.mp3', 0.5);
+    this.eatingFruit       = new audioTrack('sounds/eating-fruit.mp3');
+    this.ghostSpurtMove1   = new audioTrack('sounds/ghost-spurt-move-1.mp3');
+    this.ghostSpurtMove2   = new audioTrack('sounds/ghost-spurt-move-2.mp3');
+    this.ghostSpurtMove3   = new audioTrack('sounds/ghost-spurt-move-3.mp3');
+    this.ghostSpurtMove4   = new audioTrack('sounds/ghost-spurt-move-4.mp3');
+    this.ghostNormalMove   = new audioTrack('sounds/ghost-normal-move.mp3');
+    this.extend            = new audioTrack('sounds/extend.mp3');
+    this.eating            = new audioTrack('sounds/eating.mp3', 0.5);
+    this.startMusic        = new audioTrack('sounds/start-music.mp3');
+
+    this.ghostReset = function(noResetTime) {
+        for (var s in this) {
+            if (s == 'silence' || s == 'ghostReset' ) return;
+            if (s.match(/^ghost/)) this[s].stopLoop(noResetTime);
+        }
+    };
+
+    this.silence = function(noResetTime) {
+        for (var s in this) {
+            if (s == 'silence' || s == 'ghostReset' ) return;
+            this[s].stopLoop(noResetTime);
+        }
+    }
+}
 //@line 1 "src/random.js"
 
 var getRandomColor = function() {
@@ -1077,7 +1164,7 @@ var mapgen = (function(){
 
     var genRandom = function() {
 
-		// Gathers all the non-filled cells of the left-most column not completely filled.
+        // Gathers all the non-filled cells of the left-most column not completely filled.
         var getLeftMostEmptyCells = function() {
             var x;
             var leftCells = [];
@@ -1096,11 +1183,11 @@ var mapgen = (function(){
             return leftCells;
         };
 
-		// determines if the given cell can grow in the given direction.
-		// cell: the source cell object
-		// i: the growth direction
-		// prevDir: last growth direction
-		// size: number of cells currently in this group
+        // determines if the given cell can grow in the given direction.
+        // cell: the source cell object
+        // i: the growth direction
+        // prevDir: last growth direction
+        // size: number of cells currently in this group
         var isOpenCell = function(cell,i,prevDir,size) {
 
             // prevent wall from going through starting position
@@ -1128,7 +1215,7 @@ var mapgen = (function(){
             return false;
         };
 
-		// get the cells that can be the given cell can be grown toward
+        // get the cells that can be the given cell can be grown toward
         var getOpenCells = function(cell,prevDir,size) {
             var openCells = [];
             var numOpenCells = 0;
@@ -1141,7 +1228,7 @@ var mapgen = (function(){
             return { openCells: openCells, numOpenCells: numOpenCells };
         };
 
-		// grow a cell in the given direction
+        // grow a cell in the given direction
         var connectCell = function(cell,dir) {
             cell.connect[dir] = true;
             cell.next[dir].connect[rotateAboutFace(dir)] = true;
@@ -3174,11 +3261,13 @@ var initRenderer = function(){
             })(screenWidth, screenHeight, mapMargin);
 
             // draw fps
-            ctx.font = (tileSize-2) + "px ArcadeR";
-            ctx.textBaseline = "bottom";
-            ctx.textAlign = "right";
-            ctx.fillStyle = "#333";
-            ctx.fillText(Math.floor(executive.getFps())+" FPS", screenWidth, screenHeight);
+            if (DEBUG) {
+                ctx.font = (tileSize-2) + "px ArcadeR";
+                ctx.textBaseline = "bottom";
+                ctx.textAlign = "right";
+                ctx.fillStyle = "#333";
+                ctx.fillText(Math.floor(executive.getFps())+" FPS", screenWidth, screenHeight);
+            }
 
             // translate to map space
             ctx.translate(mapMargin+mapPad, mapMargin+mapPad);
@@ -7580,6 +7669,7 @@ Ghost.prototype.reset = function() {
     // modes
     this.mode = this.startMode;
     this.scared = false;
+    audio.ghostReset();
 
     this.savedSigReverse = {};
     this.savedSigLeaveHome = {};
@@ -7664,6 +7754,8 @@ Ghost.prototype.reverse = function() {
 // set after the update() function is called so that we are still frozen
 // for 3 seconds before traveling home uninterrupted.
 Ghost.prototype.goHome = function() {
+    audio.silence();
+    audio.eatingGhost.play();
     this.mode = GHOST_EATEN;
 };
 
@@ -7671,8 +7763,33 @@ Ghost.prototype.goHome = function() {
 // the ghost is commanded to leave home similarly.
 // (not sure if this is correct yet)
 Ghost.prototype.leaveHome = function() {
+    this.playSounds();
     this.sigLeaveHome = true;
 };
+
+Ghost.prototype.playSounds = function() {
+    var ghostsOutside = 0;
+    var ghostsGoingHome = 0;
+    for (var i=0; i<4; i++) {
+        if (ghosts[i].mode == GHOST_OUTSIDE)    ghostsOutside++;
+        if (ghosts[i].mode == GHOST_GOING_HOME) ghostsGoingHome++;
+    }
+    if (ghostsGoingHome > 0) {
+        audio.ghostNormalMove.stopLoop();
+        audio.ghostReturnToHome.startLoop(true);
+        return;
+    }
+    else {
+        audio.ghostReturnToHome.stopLoop();
+    }
+    if (ghostsOutside > 0 ) {
+        if (! this.scared)
+            audio.ghostNormalMove.startLoop(true);
+    }
+    else {
+        audio.ghostNormalMove.stopLoop();
+    }
+}
 
 // function called when pacman eats an energizer
 Ghost.prototype.onEnergized = function() {
@@ -7712,6 +7829,7 @@ Ghost.prototype.homeSteer = (function(){
             // walk to the door, or go through if already there
             if (this.pixel.x == map.doorPixel.x) {
                 this.mode = GHOST_ENTERING_HOME;
+                this.playSounds();
                 this.setDir(DIR_DOWN);
                 this.faceDirEnum = this.dirEnum;
             }
@@ -7947,6 +8065,7 @@ var Player = function() {
     }
 
     this.nextDir = {};
+    this.lastMeal = { x:-1, y:-1 };
 
     // determines if this player should be AI controlled
     this.ai = false;
@@ -8115,6 +8234,9 @@ Player.prototype.steer = function() {
             }
         }
     }
+    if (this.stopped) {
+        audio.eating.stopLoop(true);
+    }
 };
 
 
@@ -8139,12 +8261,13 @@ Player.prototype.update = function(j) {
     if (map) {
         var t = map.getTile(this.tile.x, this.tile.y);
         if (t == '.' || t == 'o') {
-
+            this.lastMeal.x = this.tile.x;
+            this.lastMeal.y = this.tile.y
             // apply eating drag (unless in turbo mode)
             if (!turboMode) {
                 this.eatPauseFramesLeft = (t=='.') ? 1 : 3;
             }
-
+            audio.eating.startLoop(true);
             map.onDotEat(this.tile.x, this.tile.y);
             ghostReleaser.onDotEat();
             fruit.onDotEat();
@@ -8152,6 +8275,9 @@ Player.prototype.update = function(j) {
 
             if (t=='o')
                 energizer.activate();
+        }
+        if (t == ' ' && ! (this.lastMeal.x == this.tile.x && this.lastMeal.y == this.tile.y)) {
+            audio.eating.stopLoop(true);
         }
     }
 };
@@ -8843,6 +8969,7 @@ var energizer = (function() {
         save: save,
         load: load,
         reset: function() {
+            audio.ghostTurnToBlue.stopLoop();
             count = 0;
             active = false;
             points = 100;
@@ -8860,6 +8987,8 @@ var energizer = (function() {
             }
         },
         activate: function() { 
+            audio.ghostNormalMove.stopLoop();
+            audio.ghostTurnToBlue.startLoop();
             active = true;
             count = 0;
             points = 100;
@@ -8942,6 +9071,9 @@ BaseFruit.prototype = {
     testCollide: function() {
         if (this.isPresent() && this.isCollide()) {
             addScore(this.getPoints());
+            audio.silence(true);
+            audio.eatingFruit.play();
+            setTimeout(ghosts[0].playSounds, 500);
             this.reset();
             this.scoreFramesLeft = this.scoreDuration*60;
         }
@@ -9390,6 +9522,7 @@ var state;
 // switches to another game state
 var switchState = function(nextState,fadeDuration, continueUpdate1, continueUpdate2) {
     state = (fadeDuration) ? fadeNextState(state,nextState,fadeDuration,continueUpdate1, continueUpdate2) : nextState;
+    audio.silence();
     state.init();
     if (executive.isPaused()) {
         executive.togglePause();
@@ -9519,6 +9652,7 @@ var homeState = (function(){
     return {
         init: function() {
             menu.enable();
+            audio.coffeeBreakMusic.startLoop();
         },
         draw: function() {
             renderer.clearMapFrame();
@@ -9870,6 +10004,7 @@ var preNewGameState = (function() {
 
     return {
         init: function() {
+            audio.startMusic.play();
             menu.enable();
             gameTitleState.init();
             map = undefined;
@@ -10535,7 +10670,7 @@ var aboutState = (function(){
 
 var newGameState = (function() {
     var frames;
-    var duration = 2;
+    var duration = 0;
     var startLevel = 1;
 
     return {
@@ -10577,10 +10712,11 @@ var newGameState = (function() {
 
 var readyState =  (function(){
     var frames;
-    var duration = 2;
+    var duration = 4;
     
     return {
         init: function() {
+            audio.startMusic.play();
             var i;
             for (i=0; i<5; i++)
                 actors[i].reset();
@@ -10730,6 +10866,7 @@ var playState = {
                         ghosts[i].mode = GHOST_GOING_HOME;
                         ghosts[i].targetting = 'door';
                     }
+                    ghosts[0].playSounds();
             }
             
             if (!skip) {
@@ -10754,6 +10891,7 @@ var playState = {
                     if (map.allDotsEaten()) {
                         //this.draw();
                         switchState(finishState);
+                        audio.extend.play();
                         break;
                     }
 
@@ -10877,6 +11015,9 @@ var deadState = (function() {
         // script functions for each time
         triggers: {
             0: { // freeze
+                init: function() {
+                    audio.die.play();
+                },
                 update: function() {
                     var i;
                     for (i=0; i<4; i++) 
@@ -11295,8 +11436,11 @@ var playCutScene = function(cutScene, nextState) {
     map = undefined;
     renderer.drawMap(true);
 
+    // miss the audio silence and time it cleanly for pacman cut scene 1
+    setTimeout(audio.coffeeBreakMusic.startLoop, 1200);
     cutScene.nextState = nextState;
     switchState(cutScene, 60);
+
 };
 
 var pacmanCutscene1 = newChildObject(scriptState, {
