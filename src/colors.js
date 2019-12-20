@@ -11,7 +11,7 @@
  * @param   Number  b       The blue color value
  * @return  Array           The HSL representation
  */
-function rgbToHsl(r, g, b){
+export function rgbToHsl(r, g, b){
     r /= 255, g /= 255, b /= 255;
     var max = Math.max(r, g, b), min = Math.min(r, g, b);
     var h, s, l = (max + min) / 2;
@@ -43,7 +43,7 @@ function rgbToHsl(r, g, b){
  * @param   Number  l       The lightness
  * @return  Array           The RGB representation
  */
-function hslToRgb(h, s, l){
+export function hslToRgb(h, s, l){
     var r, g, b;
 
     if(s == 0){
@@ -83,7 +83,7 @@ function hslToRgb(h, s, l){
  * @param   Number  b       The blue color value
  * @return  Array           The HSV representation
  */
-function rgbToHsv(r, g, b){
+export function rgbToHsv(r, g, b){
     r = r/255, g = g/255, b = b/255;
     var max = Math.max(r, g, b), min = Math.min(r, g, b);
     var h, s, v = max;
@@ -116,7 +116,7 @@ function rgbToHsv(r, g, b){
  * @param   Number  v       The value
  * @return  Array           The RGB representation
  */
-function hsvToRgb(h, s, v){
+export function hsvToRgb(h, s, v){
     var r, g, b;
 
     var i = Math.floor(h * 6);
@@ -141,7 +141,7 @@ function hsvToRgb(h, s, v){
     return [r,g,b];
 }
 
-function rgbString(rgb) {
+export function rgbString(rgb) {
     var r = Math.floor(rgb[0]);
     var g = Math.floor(rgb[1]);
     var b = Math.floor(rgb[2]);

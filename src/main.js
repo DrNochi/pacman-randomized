@@ -1,26 +1,33 @@
-//////////////////////////////////////////////////////////////////////////////////////
-// Entry Point
+import './config/requestanimationframe.js'
+import './config/localstorage.js'
+import './config/fetchdata.js'
 
-window.addEventListener("load", function() {
-    loadHighScores();
-    initRenderer();
-    atlas.create();
-    initSwipe();
-	var anchor = window.location.hash.substring(1);
-	if (anchor == "learn") {
-		switchState(learnState);
-	}
-	else if (anchor == "cheat_pac" || anchor == "cheat_mspac") {
-		gameMode = (anchor == "cheat_pac") ? GAME_PACMAN : GAME_MSPACMAN;
-		practiceMode = true;
-        switchState(newGameState);
-		for (var i=0; i<4; i++) {
-			ghosts[i].isDrawTarget = true;
-			ghosts[i].isDrawPath = true;
-		}
-	}
-	else {
-		switchState(homeState);
-	}
-    executive.init();
-});
+import { CanvasFrontEnd } from './frontend.js'
+import { homeState } from './states.js'
+import Executive from './executive.js'
+
+const canvas = document.getElementById('canvas')
+const frontend = new CanvasFrontEnd(canvas)
+const executive = new Executive(frontend)
+executive.switchState(homeState)
+
+function resize() {
+    const sx = innerWidth / canvas.clientWidth
+    const sy = innerHeight / canvas.clientHeight
+    const s = Math.min(sx, sy)
+
+    canvas.style.width = Math.floor(canvas.clientWidth * s) + 'px'
+
+    frontend.renderer.scaleCanvas(s)
+    executive.render()
+}
+
+let resizeTimeout
+addEventListener('resize', () => {
+    clearTimeout(resizeTimeout)
+    resizeTimeout = setTimeout(resize, 100)
+}, false)
+
+resize()
+
+executive.start()

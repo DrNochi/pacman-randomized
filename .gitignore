@@ -1,2 +1,6 @@
+.vscode/
 
-*.pyc
+node/
+node_modules/
+
+dist/

@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Pac-Man</title>
+
+    <meta charset="utf-8">
+
+    <!-- Lock viewport on mobile devices. -->
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> -->
+    <meta name="viewport" content="maximum-scale=1.0, user-scalable=no">
+
+    <!-- Allow page to be saved as web app on iOS. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <!-- Hide status bar -->
+    <meta names="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- icon used for iOS Web App -->
+    <link rel="apple-touch-icon-precomposed" href="icon/ios_icon.png">
+
+    <link rel="icon" type="image/png" href="icon/favicon.png">
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Web app manifest -->
+    <link rel="manifest" href="manifest.json">
+    <script src="service.js"></script>
+
+    <script src="dist/pacman.min.js" defer></script>
+</head>
+
+<body>
+    <noscript>
+        <div class="warning">Your browser has scripts disabled. Please allow execution!</div>
+    </noscript>
+    <canvas id="canvas">
+        <div class="warning">Your browser does not support canvas. Please upgrade!</div>
+    </canvas>
+</body>
+
+</html>

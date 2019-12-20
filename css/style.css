@@ -1,0 +1,26 @@
+@font-face {
+    font-family: 'Arcade';
+    src: url('../font/ARCADE_R.ttf');
+}
+
+html {
+    touch-action: none;
+}
+
+body {
+    margin: 0;
+    background: #000;
+    font-family: Arcade, monospace;
+}
+
+#canvas {
+    display: block;
+    margin: auto;
+}
+
+.warning {
+    margin: 8px;
+    font-size: 1.5em;
+    text-align: center;
+    color: #ff0;
+}

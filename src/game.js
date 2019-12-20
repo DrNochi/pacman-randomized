@@ -1,277 +1,163 @@
-//////////////////////////////////////////////////////////////////////////////////////
-// Game
+import Player from './player.js'
+import Ghost, { ghostPacingHome, ghostLeavingHome, ghostGoingHome, ghostEnteringHome, ghostOutside } from './ghost.js'
+import GhostReleaser from './ghostreleaser.js'
+import GhostCommander from './ghostcommander.js'
+import Energizer from './energizer.js'
+import highscores from './highscores.js'
+import { homeState } from './states.js'
+import { mapgen } from './mapgen.js'
+import * as directions from './direction.js'
+import * as targets from './targets.js'
+import debug from './debug.js'
 
-// game modes
-var GAME_PACMAN = 0;
-var GAME_MSPACMAN = 1;
-var GAME_COOKIE = 2;
-var GAME_OTTO = 3;
+export class Game {
 
-var practiceMode = false;
-var turboMode = false;
+    practiceMode = false
+    turboMode = false
 
-// current game mode
-var gameMode = GAME_PACMAN;
-var getGameName = (function(){
+    level = 1 // todo levels
+    score = 0
+    extraLives = 0 // todo lives
 
-    var names = ["PAC-MAN", "MS PAC-MAN", "COOKIE-MAN","CRAZY OTTO"];
-    
-    return function(mode) {
-        if (mode == undefined) {
-            mode = gameMode;
+    ghostReleaser = new GhostReleaser()
+    ghostCommander = new GhostCommander()
+    energizer = new Energizer()
+
+    player = new Player()
+    ghosts = []
+
+    frame = 0
+    eatPauseFrames = 0
+
+    constructor(gameMode, forceMapgen, playerAi) {
+        this.gameMode = gameMode // todo gamemode
+
+        this.map = forceMapgen ? mapgen() : gameMode.getMap(this.level)
+
+        this.player.pos = { x: 14 * 8, y: 26.5 * 8}
+        this.player.dir = directions.left
+        this.player.agent = playerAi
+
+        const blinky = new Ghost({ x: 14 * 8, y: 14.5 * 8 }, directions.left, ghostOutside)
+        blinky.scatterTarget = { x: 25, y: 0 }
+        blinky.pickTarget = targets.targetPlayer
+        blinky.color = '#f00'
+        this.ghosts.push(blinky)
+
+        const pinky = new Ghost({ x: 14 * 8, y: 17.5 * 8 }, directions.down, ghostPacingHome)
+        pinky.scatterTarget = { x: 2, y: 0 }
+        pinky.pickTarget = targets.targetAheadPlayer
+        pinky.color = '#ffb8ff'
+        this.ghosts.push(pinky)
+
+        const inky = new Ghost({ x: 12 * 8, y: 17.5 * 8 }, directions.up, ghostPacingHome)
+        inky.scatterTarget = { x: 27, y: 35 }
+        inky.pickTarget = targets.targetOppositeFactory(blinky)
+        inky.color = '#0ff'
+        this.ghosts.push(inky)
+
+        const clyde = new Ghost({ x: 16 * 8, y: 17.5 * 8 }, directions.up, ghostPacingHome)
+        clyde.scatterTarget = { x: 0, y: 35 }
+        clyde.pickTarget = targets.targetPlayerFeintFactory(clyde.scatterTarget, 64)
+        clyde.color = '#ffb851'
+        this.ghosts.push(clyde)
+    }
+
+    update(executive) {
+        if (this.eatPauseFrames) {
+            for (let step = 0; step < 2; ++step) {
+                for (const ghost of this.ghosts) {
+                    if (ghost.mode == ghostGoingHome || ghost.mode == ghostEnteringHome) {
+                        if (step < ghost.getStepSize(this))
+                            ghost.step(this)
+                    }
+                }
+            }
+
+            --this.eatPauseFrames
+            return
         }
-        return names[mode];
-    };
-})();
 
-var getGameDescription = (function(){
+        this.player.update()
+        for (const ghost of this.ghosts)
+            ghost.update()
 
-    var desc = [
-        [
-            "ORIGINAL ARCADE:",
-            "NAMCO (C) 1980",
-            "",
-            "REVERSE-ENGINEERING:",
-            "JAMEY PITTMAN",
-            "",
-            "REMAKE:",
-            "SHAUN WILLIAMS",
-        ],
-        [
-            "ORIGINAL ARCADE ADDON:",
-            "MIDWAY/GCC (C) 1981",
-            "",
-            "REVERSE-ENGINEERING:",
-            "BART GRANTHAM",
-            "",
-            "REMAKE:",
-            "SHAUN WILLIAMS",
-        ],
-        [
-            "A NEW PAC-MAN GAME",
-            "WITH RANDOM MAZES:",
-            "SHAUN WILLIAMS (C) 2012",
-            "",
-            "COOKIE MONSTER DESIGN:",
-            "JIM HENSON",
-            "",
-            "PAC-MAN CROSSOVER CONCEPT:",
-            "TANG YONGFA",
-        ],
-        [
-            "THE UNRELEASED",
-            "MS. PAC-MAN PROTOTYPE:",
-            "GCC (C) 1981",
-            "",
-            "SPRITES REFERENCED FROM",
-            "STEVE GOLSON'S",
-            "CAX 2012 PRESENTATION",
-            "",
-            "REMAKE:",
-            "SHAUN WILLIAMS",
-        ],
-    ];
-    
-    return function(mode) {
-        if (mode == undefined) {
-            mode = gameMode;
+        this.ghostReleaser.update(this)
+        this.ghostCommander.update(this)
+        this.energizer.update(this)
+
+        // todo fruit
+        // todo elroy
+
+        for (let step = 0; step < 2; ++step) {
+            if (step < this.player.getStepSize(this))
+                this.player.step(this)
+
+            if (!this.map.dots) {
+                executive.switchState(homeState, 60) // todo finishState
+                break
+            }
+
+            if (this.checkCollision(executive)) break
+            for (const ghost of this.ghosts) {
+                if (step < ghost.getStepSize(this))
+                    ghost.step(this)
+            }
+            if (this.checkCollision(executive)) break
         }
-        return desc[mode];
-    };
-})();
 
-var getGhostNames = function(mode) {
-    if (mode == undefined) {
-        mode = gameMode;
-    }
-    if (mode == GAME_OTTO) {
-        return ["plato","darwin","freud","newton"];
-    }
-    else if (mode == GAME_MSPACMAN) {
-        return ["blinky","pinky","inky","sue"];
-    }
-    else if (mode == GAME_PACMAN) {
-        return ["blinky","pinky","inky","clyde"];
-    }
-    else if (mode == GAME_COOKIE) {
-        return ["elmo","piggy","rosita","zoe"];
-    }
-};
-
-var getGhostDrawFunc = function(mode) {
-    if (mode == undefined) {
-        mode = gameMode;
-    }
-    if (mode == GAME_OTTO) {
-        return atlas.drawMonsterSprite;
-    }
-    else if (mode == GAME_COOKIE) {
-        return atlas.drawMuppetSprite;
-    }
-    else {
-        return atlas.drawGhostSprite;
-    }
-};
-
-var getPlayerDrawFunc = function(mode) {
-    if (mode == undefined) {
-        mode = gameMode;
-    }
-    if (mode == GAME_OTTO) {
-        return atlas.drawOttoSprite;
-    }
-    else if (mode == GAME_PACMAN) {
-        return atlas.drawPacmanSprite;
-    }
-    else if (mode == GAME_MSPACMAN) {
-        return atlas.drawMsPacmanSprite;
-    }
-    else if (mode == GAME_COOKIE) {
-        //return atlas.drawCookiemanSprite;
-        return drawCookiemanSprite;
-    }
-};
-
-
-// for clearing, backing up, and restoring cheat states (before and after cutscenes presently)
-var clearCheats, backupCheats, restoreCheats;
-(function(){
-    clearCheats = function() {
-        pacman.invincible = false;
-        pacman.ai = false;
-        for (i=0; i<5; i++) {
-            actors[i].isDrawPath = false;
-            actors[i].isDrawTarget = false;
-        }
-        executive.setUpdatesPerSecond(60);
-    };
-
-    var i, invincible, ai, isDrawPath, isDrawTarget;
-    isDrawPath = {};
-    isDrawTarget = {};
-    backupCheats = function() {
-        invincible = pacman.invincible;
-        ai = pacman.ai;
-        for (i=0; i<5; i++) {
-            isDrawPath[i] = actors[i].isDrawPath;
-            isDrawTarget[i] = actors[i].isDrawTarget;
-        }
-    };
-    restoreCheats = function() {
-        pacman.invincible = invincible;
-        pacman.ai = ai;
-        for (i=0; i<5; i++) {
-            actors[i].isDrawPath = isDrawPath[i];
-            actors[i].isDrawTarget = isDrawTarget[i];
-        }
-    };
-})();
-
-// current level, lives, and score
-var level = 1;
-var extraLives = 0;
-
-// VCR functions
-
-var savedLevel = {};
-var savedExtraLives = {};
-var savedHighScore = {};
-var savedScore = {};
-var savedState = {};
-
-var saveGame = function(t) {
-    savedLevel[t] = level;
-    savedExtraLives[t] = extraLives;
-    savedHighScore[t] = getHighScore();
-    savedScore[t] = getScore();
-    savedState[t] = state;
-};
-var loadGame = function(t) {
-    level = savedLevel[t];
-    if (extraLives != savedExtraLives[t]) {
-        extraLives = savedExtraLives[t];
-        renderer.drawMap();
-    }
-    setHighScore(savedHighScore[t]);
-    setScore(savedScore[t]);
-    state = savedState[t];
-};
-
-/// SCORING
-// (manages scores and high scores for each game type)
-
-var scores = [
-    0,0, // pacman
-    0,0, // mspac
-    0,0, // cookie
-    0,0, // otto
-    0 ];
-var highScores = [
-    10000,10000, // pacman
-    10000,10000, // mspac
-    10000,10000, // cookie
-    10000,10000, // otto
-    ];
-
-var getScoreIndex = function() {
-    if (practiceMode) {
-        return 8;
-    }
-    return gameMode*2 + (turboMode ? 1 : 0);
-};
-
-// handle a score increment
-var addScore = function(p) {
-
-    // get current scores
-    var score = getScore();
-
-    // handle extra life at 10000 points
-    if (score < 10000 && score+p >= 10000) {
-        extraLives++;
-        renderer.drawMap();
+        ++this.frame
     }
 
-    score += p;
-    setScore(score);
+    checkCollision(executive) {
+        const playerTile = this.player.tile
+        for (const ghost of this.ghosts) {
+            const ghostTile = ghost.tile
+            if (playerTile.x == ghostTile.x && playerTile.y == ghostTile.y && ghost.mode == ghostOutside) {
+                if (ghost.scared) {
+                    this.energizer.eatGhost()
+                    this.addScore(this.energizer.points)
+                    this.eatPauseFrames = 60
 
-    if (!practiceMode) {
-        if (score > getHighScore()) {
-            setHighScore(score);
+                    ghost.eaten()
+                } else {
+                    if (debug.enabled) console.log('dead')
+                    else executive.switchState(homeState, 60) // todo deadState
+                }
+
+                return true
+            }
         }
     }
-};
 
-var getScore = function() {
-    return scores[getScoreIndex()];
-};
-var setScore = function(score) {
-    scores[getScoreIndex()] = score;
-};
+    addScore(points) {
+        if (this.score < 10000 && this.score + points >= 10000)
+            ++this.extraLives
 
-var getHighScore = function() {
-    return highScores[getScoreIndex()];
-};
-var setHighScore = function(highScore) {
-    highScores[getScoreIndex()] = highScore;
-    saveHighScores();
-};
-// High Score Persistence
+        this.score += points
 
-var loadHighScores = function() {
-    var hs;
-    var hslen;
-    var i;
-    if (localStorage && localStorage.highScores) {
-        hs = JSON.parse(localStorage.highScores);
-        hslen = hs.length;
-        for (i=0; i<hslen; i++) {
-            highScores[i] = Math.max(highScores[i],hs[i]);
+        if (!this.practiceMode) {
+            if (this.score > this.highscore)
+                this.highscore = this.score
         }
     }
-};
-var saveHighScores = function() {
-    if (localStorage) {
-        localStorage.highScores = JSON.stringify(highScores);
+
+    get highscore() {
+        return this.turboMode
+            ? this.gameMode.highscoreTurbo
+            : this.gameMode.highscore
     }
-};
+
+    set highscore(score) {
+        if (this.turboMode) {
+            this.gameMode.highscoreTurbo = score
+            highscores.save(`${this.gameMode.name}_highscoreTurbo`, score)
+        } else {
+            this.gameMode.highscore = score
+            highscores.save(`${this.gameMode.name}_highscore`, score)
+        }
+    }
+
+}
+
+export default Game
