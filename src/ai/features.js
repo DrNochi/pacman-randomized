@@ -1,5 +1,8 @@
 import * as direction from '../direction.js'
 
+import tfjs from '../tfjs.js'
+const tf = tfjs.tf
+
 function closestFood(map, open, visited) {
     while (open.length) {
         const pos = open.pop()
@@ -29,7 +32,7 @@ export function getPossibleDirs(game) {
     return possibleDirs
 }
 
-export function extractSimpleFeatures(game) {
+function extractBasicFeatures(game) {
     const playerPos = game.player.tile
 
     let closeGhosts = 0
@@ -61,11 +64,72 @@ export function extractSimpleFeatures(game) {
         'ghost-bottom': ghostsBottom,
         'ghost-left': ghostsLeft,
         'ghost-right': ghostsRight,
-        // 'closest-food': food.dist,
+        'closest-food': food.dist,
         'food-top': food.dir == direction.up,
         'food-bottom': food.dir == direction.down,
         'food-left': food.dir == direction.left,
         'food-right': food.dir == direction.right,
         'scared-ghosts': game.energizer.active,
     }
+}
+
+export function extractSimpleFeatures(game) {
+    const features = extractBasicFeatures(game)
+    delete features['closest-food']
+    return features
+}
+
+export const simpleFeaturesShape = [13]
+export function extractSimpleFeaturesTF(game) {
+    const features = extractBasicFeatures(game)
+    const tile = game.player.tile
+
+    let i = 0
+    const state = tf.buffer(simpleFeaturesShape, 'int32')
+    state.set(game.map.isWalkable(tile.x, tile.y - 1), i++)
+    state.set(game.map.isWalkable(tile.x - 1, tile.y), i++)
+    state.set(game.map.isWalkable(tile.x, tile.y + 1), i++)
+    state.set(game.map.isWalkable(tile.x + 1, tile.y), i++)
+    state.set(features['ghost-top'], i++)
+    state.set(features['ghost-left'], i++)
+    state.set(features['ghost-bottom'], i++)
+    state.set(features['ghost-right'], i++)
+    state.set(features['food-top'], i++)
+    state.set(features['food-left'], i++)
+    state.set(features['food-bottom'], i++)
+    state.set(features['food-right'], i++)
+    state.set(features['scared-ghosts'], i++)
+
+    return tf.tidy(() => state.toTensor().expandDims())
+}
+
+export const extendedFeaturesShape = [18]
+export function extractExtendedFeaturesTF(game) {
+    const features = extractBasicFeatures(game)
+    const tile = game.player.tile
+
+    let i = 0
+    const state = tf.buffer(extendedFeaturesShape, 'int32')
+    state.set(game.map.isWalkable(tile.x, tile.y - 1), i++)
+    state.set(game.map.isWalkable(tile.x - 1, tile.y), i++)
+    state.set(game.map.isWalkable(tile.x, tile.y + 1), i++)
+    state.set(game.map.isWalkable(tile.x + 1, tile.y), i++)
+    state.set(features['ghost-top'], i++)
+    state.set(features['ghost-left'], i++)
+    state.set(features['ghost-bottom'], i++)
+    state.set(features['ghost-right'], i++)
+    state.set(features['food-top'], i++)
+    state.set(features['food-left'], i++)
+    state.set(features['food-bottom'], i++)
+    state.set(features['food-right'], i++)
+    state.set(features['scared-ghosts'], i++)
+
+    for(const ghost of game.ghosts) {
+        const ghostTile = ghost.tile
+        state.set(Math.abs(tile.x - ghostTile.x) + Math.abs(tile.y - ghostTile.y) / (28 + 36), i++)
+    }
+
+    state.set(features['closest-food'] / (28 * 36), i++)
+
+    return tf.tidy(() => state.toTensor().expandDims())
 }

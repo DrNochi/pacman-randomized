@@ -42,6 +42,8 @@ export class CanvasFrontEnd {
     }
 
     registerButton(button, executive) {
+        if (button.disabled) return
+
         const that = this
 
         let selected = false

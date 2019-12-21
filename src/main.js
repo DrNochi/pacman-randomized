@@ -1,5 +1,6 @@
 import './config/requestanimationframe.js'
 import './config/localstorage.js'
+import './config/tfjs-external.js'
 import './config/fetchdata.js'
 
 import { CanvasFrontEnd } from './frontend.js'

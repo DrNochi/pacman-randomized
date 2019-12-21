@@ -33,17 +33,24 @@ export class Player extends Actor {
 
     steer(game) {
         const tile = this.tile
+
+        let inputDir = direction.stop
         if (this.inputDir != direction.stop) {
-            const vec = direction.vectors[this.inputDir]
+            inputDir = this.inputDir
+            this.override = true
+        } else if (!this.override && this.agent) {
+            inputDir = this.agent.chooseAction(game)
+        }
+
+        if (inputDir != direction.stop) {
+            const vec = direction.vectors[inputDir]
             if (game.map.isWalkable(tile.x + vec.x, tile.y + vec.y)) {
-                this.dir = this.inputDir
+                this.dir = inputDir
                 this.inputDir = direction.stop
-                this.override = true
             }
         } else {
             const vec = direction.vectors[this.dir]
             this.override = this.override && game.map.isWalkable(tile.x + vec.x, tile.y + vec.y)
-            if (!this.override && this.agent) this.dir = this.agent.chooseAction(game)
         }
     }
 

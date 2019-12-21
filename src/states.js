@@ -1,8 +1,11 @@
 import Menu from './menu.js'
 import Game from './game.js'
 import { gamePacMan, gameMsPacMan, gameCookieMan } from './gamemodes.js'
-import { QAgent, QHumanAgent } from './ai/agents.js'
+import { QAgent, QHumanAgent, PolicyAgent, ExtendedPolicyAgent } from './ai/agents.js'
 import debug from './debug.js'
+
+import tfjs from './tfjs.js'
+const tf = tfjs.tf
 
 export class FadeNextState {
 
@@ -76,6 +79,10 @@ homeMenu.addTextButton('LEARN', exec => console.log('todo'))
 homeMenu.addSpacer(0.5)
 homeMenu.addTextButton('AI SETTINGS', exec => exec.switchState(aiSettingsState))
 
+homeMenu.buttons[1].disabled = true
+homeMenu.buttons[2].disabled = true
+homeMenu.buttons[3].disabled = true
+
 export const homeState = {
     init: function (executive) {
         executive.frontend.registerMenu(homeMenu, executive)
@@ -101,8 +108,15 @@ aiMenu.addTextButton('', exec => {
     exec.data.playerAi = exec.data.playerAi == QHumanAgent ? undefined : QHumanAgent
     resetAiMenu(exec)
 })
-aiMenu.addTextButton('DEEP Q LEARNING', exec => console.log('todo'))
-aiMenu.addTextButton('DEEP AC LEARNING', exec => console.log('todo'))
+aiMenu.addTextButton('', exec => {
+    exec.data.playerAi = exec.data.playerAi == PolicyAgent ? undefined : PolicyAgent
+    resetAiMenu(exec)
+})
+aiMenu.addTextButton('', exec => {
+    exec.data.playerAi = exec.data.playerAi == ExtendedPolicyAgent ? undefined : ExtendedPolicyAgent
+    if (exec.data.playerAi) alert('This bot did not enjoy a long training session! It probably has poor playing strength')
+    resetAiMenu(exec)
+})
 aiMenu.addTextButton('', exec => {
     exec.data.mapgen = !exec.data.mapgen
     resetAiMenu(exec)
@@ -118,6 +132,8 @@ aiMenu.backButton = aiMenu.buttons[aiMenu.buttons.length - 1]
 function resetAiMenu(exec) {
     aiMenu.buttons[0].text = exec.data.playerAi == QAgent ? '* Q LEARNING *' : 'Q LEARNING'
     aiMenu.buttons[1].text = exec.data.playerAi == QHumanAgent ? '* Q LEARNING (HUMAN) *' : 'Q LEARNING (HUMAN)'
+    aiMenu.buttons[2].text = exec.data.playerAi == PolicyAgent ? '* POLICY NETWORK *' : 'POLICY NETWORK'
+    aiMenu.buttons[3].text = exec.data.playerAi == ExtendedPolicyAgent ? '*POLICY NETWORK (EX)*' : 'POLICY NETWORK (EX)'
     aiMenu.buttons[4].text = exec.data.mapgen ? '* RANDOM MAPS *' : 'RANDOM MAPS'
     aiMenu.buttons[5].text = debug.enabled ? '* TOGGLE DEBUG *' : 'TOGGLE DEBUG'
 }
@@ -155,6 +171,9 @@ newGameMenu.addTextButton('ABOUT', exec => console.log('todo'))
 newGameMenu.addSpacer(0.5)
 newGameMenu.addTextButton('BACK', exec => exec.switchState(homeState))
 newGameMenu.backButton = newGameMenu.buttons[newGameMenu.buttons.length - 1]
+
+newGameMenu.buttons[3].disabled = true
+newGameMenu.buttons[4].disabled = true
 
 const newGameState = {
     init: function (executive) {
@@ -224,6 +243,8 @@ const playState = {
 
     shutdown: function(executive) {
         executive.frontend.unregisterPlayerControls(executive.data.game.player)
+
+        if (executive.data.game.tfjs) tf.dispose(tfjs)
     },
 
     update: function(executive) {

@@ -1,5 +1,6 @@
 import timer from './timer.js'
 import { FadeNextState } from './states.js'
+import { QHumanAgent } from './ai/agents.js'
 import debug from './debug.js'
 
 const framePeriod = 1000 / 60
@@ -9,7 +10,7 @@ export class Executive {
     paused = false
     running = false
 
-    data = {}
+    data = { playerAi: QHumanAgent }
     state = {
         init: () => {},
         shutdown: () => {},

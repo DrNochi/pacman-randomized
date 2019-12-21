@@ -96,7 +96,7 @@
         
         \subsection{The Bots}
             \subsubsection*{Q learning}
-                The first bot we created is bot using classical AI, a simple Q learning implementation with Q table look-ups. Starting out with an empty Q table (empty JS object "\texttt{\{\}}"). At iteration during training a episode is played (an episode ends when Pac-Man dies or clears the level). For each frame the agent then chooses an action using the Q table.
+                The first bot we created is bot using classical AI, a simple Q learning implementation with Q table look-ups. Starting out with an empty Q table (empty JS object "\texttt{\{\}}"). Each iteration during training an episode is played (an episode ends when Pac-Man dies or clears the level). For each frame the agent then chooses an action using the Q table.
                 
                 The state is therefore encoded into a feature object containing the direction to the nearest pellet, as well as if a ghost is within one tile. Actions are simply represented by a numerical value (0-3 for up, left, down, right). An action is chosen using it's UCB value calculated from the Q table entries for the current state. Initially we used an $\epsilon$-greedy policy, but it turned out that UCB was able to learn quicker, have better exploration/exploitation trade-off, and converge better on a single action -- $\epsilon$-greedy policy often started to jitter, switching between multiple directions each step --.
                 
@@ -118,24 +118,47 @@
                 \textbf{Results:} Bot is now able to clear levels ($\approx 15-20\%$), but still has trouble with ghosts entering a tile in the same frame as Pac-Man. Average score: around 2000, Best score: 6340
                 
             \subsubsection*{Policy network}
-            \subsubsection*{Deep Q learning}
-            \subsubsection*{Deep Q learning (CNN)}
+                This was our first attempt of using neural networks to create a Pac-Man bot.
+                This agent uses a simple policy network, consisting of 1 hidden layer with 512 neurons (using ReLU as activation function) and a softmax output layer: \texttt{FC => RELU => FC => SOFTMAX}. It uses basically the same features as the Q learning bots.
+                
+                \vspace{1em}\noindent
+                \textbf{Results:} Bot is about as good as the Q learning bot, but took a lot longer to train. Average score: 1000-1200, Best score: 4320
+                
+                
+            \subsubsection*{Extended policy network}
+                An extended policy network with an additional hidden layer with 1024 neurons. As well as additional features: Distance to the closest food, Manhattan distance to the ghosts \& history of the last 3 frames (for 4 frames in total). Was added on the last day, so we couldn't train it for long enough to get meaningful results.
+            
             \subsubsection*{Deep AC learning}
+                We tried using deep convolution neural networks in combination with Q/AC learning, but had to realize that it takes a very long time to train these types of models (see Problems section below). After a training session of 8 hours only showed little improvement and research told us at least 24 hours of training would be required for "usable" results, we shifted our focus to the other faster approaches. The remnants of these "experiments" can be found in \texttt{data/cnn/}.
         
     \section{Problems (\& Solutions)}
         \subsection*{Modularization \& API}
             We started out using the Pac-Man remake as is, trying to create a bot for it. It turned out this wasn't the optimal approach, as that remake project was never meant to be used for AI purposes. It could not be used in Node.js, which we wanted to use for training, and it did not expose a way of easily integrating and switching between different AI agents.
             
             \vspace{1em}\noindent
-            \textbf{Solution:} Rewrite the game ourselves in a modular fashion that is extensible, works well with Node.js, and exposes a way of easily adding new AI agents.
+            \textbf{Solution:} Rewrite the game ourselves in a modular fashion that is extensible, works well with Node.js, and exposes a way of easily adding new AI agents. This rewrite / refactor took us a considerable amount of time we hadn't accounted for in our planning.
             
-        \subsection*{Training time}
+        \subsubsection*{Training time}
             As it turns out, training a Pac-Man bot using (deep) reinforcement learning is computationally very expensive and takes A LOT of time we sadly didn't have. \emph{\href{https://towardsdatascience.com/advanced-dqns-playing-pac-man-with-deep-reinforcement-learning-3ffbd99e0814}{Online sources}} mention that the standard approach in DQN literature is a (final) training time of 200 million frames (roughly 1 million games \& two weeks of time). But to get at least some good results 10 million frames (approximately 24 hours) should be sufficient.
             
             \vspace{1em}\noindent
             \textbf{Solution:} Just train for longer, or optimize the hyper-parameters to speed up training.
-    \newpage
         
+        \subsubsection*{No concept of time \& movement}
+            As most of our models only receive a static snapshot of a single frame as input, the model has no way to develop a concept of time as well as movement. This decreases the performance of the agents as they, for example, cannot tell if a ghost is moving toward or away from tem.
+            
+            \vspace{1em}\noindent
+            \textbf{Solution:} Give the model access to more than one frame at once. This slows down training but will increase performance drastically in the long run.
+        
+        \subsubsection*{Too simplistic encoding of the current game state}
+            Most of our agents only get a "subset" of the complete current game state. This is due to the high complexity of the game, as well as our limited resources, especially training time (test with CNNs did take ages to make even small improvements).
+            
+            \vspace{1em}\noindent
+            \textbf{Solution:} Give the model access to a more complete representation of the game state, e.g. by using deep convolution neural networks.
+            
+        \subsubsection*{High complexity}
+            While the game of Go (one of the most complex board games) is played on a 19x19 board, Pac-Man uses maps of 36x28 tiles. Additionally Pac-Man is a system that includes multiple agents (Pac-Man \& 4 ghosts) and evolves \& reacts to actions in real time in a not completely deterministic way (there is some randomness involved). This shows that Pac-Man playing is highly complex tasks, that is even challenging for most humans.
+
     \section{Features}
         \subsection{The Game}
             \begin{itemize}
@@ -151,6 +174,8 @@
             \begin{itemize}
                 \item Q-learning ("\texttt{Q LEARNING}")
                 \item Q-learning with human designed Q table ("\texttt{Q LEARNING (HUMAN)}")
+                \item Policy network ("\texttt{POLICY NETWORK}")
+                \item Extended policy network ("\texttt{POLICY NETWORK (EX)}")
                 % \item Deep Q learning
                 % \item Deep Q learning CNN
             \end{itemize}
@@ -166,13 +191,16 @@
                               $\rightarrow$ feels like a normal app
                         \item Offline mode
                     \end{itemize}
-                \item Build system using npm with rollup \& terser to pack and minify the JavaScript code for "production"/distribution
+                \item Build system using npm with rollup \& terser to pack and minify the JS code for "production"/distribution
             \end{itemize}
             
     \section{Conclusion}
+        Using methods of classical AI as well as deep learning we were able to create multiple different AI agents. While the bots we created show reasonable behaviour, they do not overcome human play (at least not in any significant way). We kind of underestimated the complexity of Pac-Man \& the amount of work required. Sadly, we weren't able to use deep convolutional neural networks as originally planed due to the reasons set out above (the complexity vs. our limited time because of the finals and other projects). Given more time, these approaches could be revisited \& bot performance could be improved significantly through much longer training sessions.
+        
+        All in all it was a fun project \& we are happy with the results, especially that the bot is sometimes able to clear the level (or gets very close to clearing it).
     
     \section{Future Directions}
-        In future "iterations" it would be possible to further improve the bots performance by tackling the aforementioned problems. Maybe other algorithms / approaches could be tried, e.g. similar to Google DeepMinds Atari AI. Other possibilities include improving on the game itself (fruits, elroy mode, Ms. Pac-Man, Crazy Otto, Cookie Man, audio) 
+        In future "iterations" it would be possible to further improve the bots performance by tackling the aforementioned problems. Maybe other algorithms / approaches could be tried, e.g. similar to Google DeepMinds Atari AI. Other possibilities include improving on the game itself (fruits, elroy mode, Ms. Pac-Man, Crazy Otto, Cookie Man, audio). 
         
         \vspace{1em}\noindent
         Additionally one could investigate adding additional game modes:
